@@ -5,8 +5,8 @@ WORKDIR /app
 # 复制package文件
 COPY package*.json ./
 
-# 安装依赖 - 使用npm install替代npm ci，因为没有package-lock.json
-RUN npm install --omit=dev
+# 安装所有依赖（包括devDependencies，因为需要vite等构建工具）
+RUN npm install
 
 # 复制源码
 COPY . .
@@ -19,8 +19,12 @@ ARG API_URL=http://localhost:8080
 ENV VITE_API_URL=$API_URL
 ENV NODE_ENV=$BUILD_ENV
 
-# 构建应用
-RUN npm run build:prod
+# 根据环境选择构建命令
+RUN if [ "$BUILD_ENV" = "development" ] ; then \
+      npm run build:dev ; \
+    else \
+      npm run build:prod ; \
+    fi
 
 # 生产阶段
 FROM nginx:alpine as production-stage
