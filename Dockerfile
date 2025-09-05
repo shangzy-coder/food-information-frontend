@@ -5,8 +5,8 @@ WORKDIR /app
 # 复制package文件
 COPY package*.json ./
 
-# 安装依赖
-RUN npm ci --only=production
+# 安装依赖 - 使用npm install替代npm ci，因为没有package-lock.json
+RUN npm install --omit=dev
 
 # 复制源码
 COPY . .
