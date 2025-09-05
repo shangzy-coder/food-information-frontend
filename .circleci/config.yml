@@ -1,7 +1,6 @@
 version: 2.1
 
 orbs:
-  node: circleci/node@5.1.0
   slack: circleci/slack@4.12.5
 
 executors:
@@ -21,8 +20,17 @@ jobs:
     executor: node-executor
     steps:
       - checkout
-      - node/install-packages:
-          pkg-manager: npm
+      - restore_cache:
+          keys:
+            - npm-deps-v1-{{ checksum "package.json" }}
+            - npm-deps-v1-
+      - run:
+          name: Install Dependencies
+          command: npm install
+      - save_cache:
+          paths:
+            - node_modules
+          key: npm-deps-v1-{{ checksum "package.json" }}
       - run:
           name: Run Linting
           command: npm run lint:eslint || echo "Linting completed"
@@ -44,8 +52,13 @@ jobs:
         default: "http://localhost:8080"
     steps:
       - checkout
-      - node/install-packages:
-          pkg-manager: npm
+      - restore_cache:
+          keys:
+            - npm-deps-v1-{{ checksum "package.json" }}
+            - npm-deps-v1-
+      - run:
+          name: Install Dependencies
+          command: npm install
       - run:
           name: Build Application
           command: |
