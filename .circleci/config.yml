@@ -109,6 +109,35 @@ jobs:
             docker-compose -f docker-compose.test.yml down -v
             docker system prune -f
           when: always
+      # 添加成功通知
+      - slack/notify:
+          event: pass
+          channel: $SLACK_DEFAULT_CHANNEL
+          custom: |
+            {
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "✅ *Food Information Frontend* 测试环境部署成功！\n*分支:* $CIRCLE_BRANCH\n*提交:* $CIRCLE_SHA1\n*构建:* $CIRCLE_BUILD_NUM\n*项目:* food-information-frontend"
+                  }
+                },
+                {
+                  "type": "actions",
+                  "elements": [
+                    {
+                      "type": "button",
+                      "text": {
+                        "type": "plain_text",
+                        "text": "查看构建"
+                      },
+                      "url": "$CIRCLE_BUILD_URL"
+                    }
+                  ]
+                }
+              ]
+            }
 
   # 生产环境 - 前端长期运行
   production-environment:
@@ -168,6 +197,68 @@ jobs:
       - store_artifacts:
           path: /tmp/monitoring
           destination: monitoring-logs
+      # 添加生产环境成功通知
+      - slack/notify:
+          event: pass
+          channel: $SLACK_DEFAULT_CHANNEL
+          custom: |
+            {
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "🚀 *Food Information Frontend* 生产环境部署成功！\n*分支:* $CIRCLE_BRANCH\n*提交:* $CIRCLE_SHA1\n*构建:* $CIRCLE_BUILD_NUM\n*项目:* food-information-frontend"
+                  }
+                },
+                {
+                  "type": "actions",
+                  "elements": [
+                    {
+                      "type": "button",
+                      "text": {
+                        "type": "plain_text",
+                        "text": "查看构建"
+                      },
+                      "url": "$CIRCLE_BUILD_URL"
+                    }
+                  ]
+                }
+              ]
+            }
+
+  # 失败通知job
+  notify-failure:
+    executor: node-executor
+    steps:
+      - slack/notify:
+          event: fail
+          channel: $SLACK_DEFAULT_CHANNEL
+          custom: |
+            {
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "❌ *Food Information Frontend* 部署失败！\n*分支:* $CIRCLE_BRANCH\n*提交:* $CIRCLE_SHA1\n*构建:* $CIRCLE_BUILD_NUM\n*项目:* food-information-frontend"
+                  }
+                },
+                {
+                  "type": "actions",
+                  "elements": [
+                    {
+                      "type": "button",
+                      "text": {
+                        "type": "plain_text",
+                        "text": "查看失败原因"
+                      },
+                      "url": "$CIRCLE_BUILD_URL"
+                    }
+                  ]
+                }
+              ]
+            }
 
 workflows:
   food-information-frontend-pipeline:
@@ -224,71 +315,8 @@ workflows:
             branches:
               only: main
       
-      # 6. Slack通知 - 成功时 (修正版本)
-      - slack/notify:
-          event: pass
-          channel: $SLACK_DEFAULT_CHANNEL
-          custom: |
-            {
-              "blocks": [
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "✅ *Food Information Frontend* 部署成功！\n*分支:* $CIRCLE_BRANCH\n*提交:* $CIRCLE_SHA1\n*构建:* $CIRCLE_BUILD_NUM\n*项目:* food-information-frontend"
-                  }
-                },
-                {
-                  "type": "actions",
-                  "elements": [
-                    {
-                      "type": "button",
-                      "text": {
-                        "type": "plain_text",
-                        "text": "查看构建"
-                      },
-                      "url": "$CIRCLE_BUILD_URL"
-                    }
-                  ]
-                }
-              ]
-            }
-          requires:
-            - test-environment
-          filters:
-            branches:
-              only: [develop, main]
-      
-      # 7. Slack通知 - 失败时 (修正版本)
-      - slack/notify:
-          name: notify-failure
-          event: fail
-          channel: $SLACK_DEFAULT_CHANNEL
-          custom: |
-            {
-              "blocks": [
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "❌ *Food Information Frontend* 部署失败！\n*分支:* $CIRCLE_BRANCH\n*提交:* $CIRCLE_SHA1\n*构建:* $CIRCLE_BUILD_NUM\n*项目:* food-information-frontend"
-                  }
-                },
-                {
-                  "type": "actions",
-                  "elements": [
-                    {
-                      "type": "button",
-                      "text": {
-                        "type": "plain_text",
-                        "text": "查看失败原因"
-                      },
-                      "url": "$CIRCLE_BUILD_URL"
-                    }
-                  ]
-                }
-              ]
-            }
+      # 6. 失败时通知
+      - notify-failure:
           requires:
             - frontend-test
           filters:
