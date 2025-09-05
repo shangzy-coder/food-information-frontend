@@ -37,10 +37,10 @@ jobs:
           command: npm run lint:eslint || echo "Linting completed"
       - run:
           name: Run Type Check
-          command: npm run type-check || echo "Type check completed"
+          command: npx vue-tsc --noEmit || echo "Type check completed"
       - run:
           name: Run Unit Tests
-          command: npm run test:unit || echo "Unit tests completed"
+          command: npm run test || echo "Unit tests completed"
 
   frontend-build:
     executor: node-executor
@@ -64,7 +64,11 @@ jobs:
           name: Build Application
           command: |
             export VITE_API_URL=<< parameters.api_url >>
-            npm run build:prod || npm run build || echo "Build completed"
+            if [ "<< parameters.env >>" = "development" ]; then
+              npm run build:dev
+            else
+              npm run build:prod
+            fi
       - store_artifacts:
           path: dist
           destination: build-artifacts
@@ -91,8 +95,8 @@ jobs:
       - run:
           name: Start Test Frontend Stack
           command: |
-            # 启动前端测试环境
-            docker-compose -f docker-compose.test.yml up -d
+            # 启动前端测试环境（使用development模式）
+            docker-compose -f docker-compose.test.yml up -d --build
             # 等待服务启动
             sleep 60
       - run:
@@ -102,11 +106,11 @@ jobs:
             timeout 300 bash -c 'until curl -f http://localhost:3000; do sleep 5; done'
             echo "Frontend health check passed"
             
-            # 检查静态资源
-            curl -f http://localhost:3000/assets/ || echo "Assets check completed"
-            
             # 检查页面响应
-            curl -s http://localhost:3000 | grep -q "Food Information" || echo "Page content check completed"
+            curl -s http://localhost:3000 | grep -q "RuoYi" || echo "Page content check completed"
+            
+            # 检查API代理
+            curl -f http://localhost:3000/dev-api/health || echo "API proxy check completed"
       - run:
           name: Collect Frontend Logs
           command: |
@@ -134,7 +138,7 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "✅ *Food Information Frontend* 测试环境部署成功！\n*分支:* $CIRCLE_BRANCH\n*提交:* $CIRCLE_SHA1\n*构建:* $CIRCLE_BUILD_NUM\n*项目:* food-information-frontend"
+                    "text": "✅ *Food Information Frontend* 测试环境部署成功！\n*分支:* $CIRCLE_BRANCH\n*提交:* $CIRCLE_SHA1\n*构建:* $CIRCLE_BUILD_NUM\n*项目:* food-information-frontend\n*环境:* Development"
                   }
                 },
                 {
@@ -168,8 +172,12 @@ jobs:
       - run:
           name: Deploy Production Frontend
           command: |
-            # 启动生产环境
-            docker-compose -f docker-compose.prod.yml up -d
+            # 获取外部IP用于生产环境配置
+            export EXTERNAL_IP=$(curl -s http://checkip.amazonaws.com)
+            echo "External IP: $EXTERNAL_IP"
+            
+            # 启动生产环境（使用production模式）
+            docker-compose -f docker-compose.prod.yml up -d --build
             # 等待服务启动
             sleep 90
       - run:
@@ -184,6 +192,9 @@ jobs:
             EXTERNAL_IP=$(curl -s http://checkip.amazonaws.com)
             echo "前端访问地址: http://$EXTERNAL_IP:3000"
             echo "Nginx状态: http://$EXTERNAL_IP:80"
+            
+            # 检查页面内容
+            curl -s http://localhost:3000 | grep -q "RuoYi" || echo "Production page check completed"
       - run:
           name: Setup Deploy Marker
           command: |
@@ -193,6 +204,7 @@ jobs:
             echo "Git提交: $CIRCLE_SHA1"
             echo "分支: $CIRCLE_BRANCH"
             echo "构建号: $CIRCLE_BUILD_NUM"
+            echo "环境: Production"
       - run:
           name: Setup Frontend Monitoring
           command: |
@@ -222,7 +234,7 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "🚀 *Food Information Frontend* 生产环境部署成功！\n*分支:* $CIRCLE_BRANCH\n*提交:* $CIRCLE_SHA1\n*构建:* $CIRCLE_BUILD_NUM\n*项目:* food-information-frontend"
+                    "text": "🚀 *Food Information Frontend* 生产环境部署成功！\n*分支:* $CIRCLE_BRANCH\n*提交:* $CIRCLE_SHA1\n*构建:* $CIRCLE_BUILD_NUM\n*项目:* food-information-frontend\n*环境:* Production"
                   }
                 },
                 {
